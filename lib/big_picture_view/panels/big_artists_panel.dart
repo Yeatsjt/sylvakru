@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gamepads/flutter_gamepads.dart';
 import 'package:sylvakru/base/data/artist_album.dart';
-import 'package:sylvakru/base/services/metadata_service.dart';
-import 'package:sylvakru/base/utils/zoom_page_route.dart';
 import 'package:sylvakru/base/widgets/cover_art_widget.dart';
 import 'package:sylvakru/base/widgets/scale_widget.dart';
-import 'package:sylvakru/big_picture_view/panels/big_single_album_panel.dart';
 
-class BigAlbumsPanel extends StatefulWidget {
-  const BigAlbumsPanel({super.key});
+class BigArtistsPanel extends StatefulWidget {
+  const BigArtistsPanel({super.key});
 
   @override
-  State<StatefulWidget> createState() => _BigAlbumsPanelState();
+  State<StatefulWidget> createState() => _BigArtistsPanelState();
 }
 
-class _BigAlbumsPanelState extends State<BigAlbumsPanel> {
-  late final ValueNotifier<List<Album>> currentAlbumListNotifier;
+class _BigArtistsPanelState extends State<BigArtistsPanel> {
+  late final ValueNotifier<List<Artist>> currentArtistListNotifier;
 
   final textController = TextEditingController();
 
@@ -28,18 +24,18 @@ class _BigAlbumsPanelState extends State<BigAlbumsPanel> {
 
   void updateCurrentList() {
     final value = textController.text;
-    currentAlbumListNotifier.value = artistAlbumManager.albumList
+    currentArtistListNotifier.value = artistAlbumManager.artistList
         .where((e) => (e.name.toLowerCase().contains(value.toLowerCase())))
         .toList();
     if (randomizeNotifier.value) {
-      currentAlbumListNotifier.value.shuffle();
+      currentArtistListNotifier.value.shuffle();
     }
   }
 
   @override
   void initState() {
     super.initState();
-    currentAlbumListNotifier = ValueNotifier(artistAlbumManager.albumList);
+    currentArtistListNotifier = ValueNotifier(artistAlbumManager.artistList);
 
     randomizeNotifier = artistAlbumManager.getIsRandomizeNotifier(false);
 
@@ -61,7 +57,7 @@ class _BigAlbumsPanelState extends State<BigAlbumsPanel> {
   Widget build(BuildContext context) {
     int crossAxisCount = (MediaQuery.widthOf(context) / 200).toInt();
     return ValueListenableBuilder(
-      valueListenable: currentAlbumListNotifier,
+      valueListenable: currentArtistListNotifier,
       builder: (context, list, child) {
         return GridView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 75),
@@ -85,14 +81,10 @@ class _BigAlbumsPanelState extends State<BigAlbumsPanel> {
                         builder: (context, constraint) {
                           return Column(
                             children: [
-                              Hero(
-                                tag: 'big${coverSong.id}${list[index].name}',
-
-                                child: CoverArtWidget(
-                                  size: constraint.maxWidth,
-                                  borderRadius: constraint.maxWidth / 10,
-                                  song: coverSong,
-                                ),
+                              CoverArtWidget(
+                                size: constraint.maxWidth,
+                                borderRadius: constraint.maxWidth / 10,
+                                song: coverSong,
                               ),
                               Transform.translate(
                                 offset: Offset(0, 5),
@@ -115,33 +107,6 @@ class _BigAlbumsPanelState extends State<BigAlbumsPanel> {
                           );
                         },
                       ),
-
-                      onTap: () async {
-                        final baseColor = await computeCoverArtColor(
-                          list[index].getCoverSong(),
-                        );
-                        if (!context.mounted) {
-                          return;
-                        }
-                        Navigator.of(context).push(
-                          ZoomPageRoute(
-                            builder: (context) {
-                              return GamepadInterceptor(
-                                onBeforeIntent: (activator, intent) {
-                                  if (intent is DismissIntent) {
-                                    Navigator.of(context).maybePop();
-                                  }
-                                  return true;
-                                },
-                                child: BigSingleAlbumPanel(
-                                  album: list[index],
-                                  baseColor: baseColor,
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
                     );
                   },
                 );
