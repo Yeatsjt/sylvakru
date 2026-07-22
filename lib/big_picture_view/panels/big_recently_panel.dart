@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:smooth_corner/smooth_corner.dart';
-import 'package:sylvakru/base/data/library.dart';
+import 'package:sylvakru/base/data/history.dart';
 import 'package:sylvakru/base/services/interaction.dart';
 import 'package:sylvakru/base/utils/format_duration.dart';
 import 'package:sylvakru/base/utils/metadata_utils.dart';
 import 'package:sylvakru/base/widgets/cover_art_widget.dart';
 
-class BigSongsPanel extends StatefulWidget {
-  const BigSongsPanel({super.key});
+class BigRecentlyPanel extends StatefulWidget {
+  const BigRecentlyPanel({super.key});
 
   @override
-  State<StatefulWidget> createState() => _BigSongsPanelState();
+  State<StatefulWidget> createState() => _BigRecentlyPanelState();
 }
 
-class _BigSongsPanelState extends State<BigSongsPanel> {
-  final songListManager = library.songListManager;
+class _BigRecentlyPanelState extends State<BigRecentlyPanel> {
+  final songListManager = history.recentlySongListManager;
 
   @override
   Widget build(BuildContext context) {
