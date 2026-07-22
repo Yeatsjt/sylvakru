@@ -1,12 +1,16 @@
 name: Release APK
 
+# ✅ 改成"网页点按钮"触发；不再依赖手动打 tag
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（不要带 v），例如 3.4.6.1'
+        required: false
+        default: '3.4.6.1'
 
 permissions:
-  contents: write          # ⚠️ 别删，删了最后一步 403 失败
+  contents: write          # ⚠️ 别删，删了建 tag / 发 Release 会 403
 
 jobs:
   release:
@@ -15,6 +19,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # ⚠️ 拉全历史，下面算 build 号才准
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -48,32 +54,42 @@ jobs:
             echo "storeFile=$GITHUB_WORKSPACE/release-keystore.jks"
           } > "$GITHUB_WORKSPACE/android/key.properties"
 
+      # ✅ 版本号在这里定：显示版本=你填的；内部 build 号=commit 总数（自动、递增）
+      - name: Compute version
+        run: |
+          VER="${{ inputs.version }}"
+          BUILD=$(git rev-list --count HEAD)
+          echo "VER=$VER"   >> "$GITHUB_ENV"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo ">>> 将发布 v$VER （内部 build number = $BUILD）"
+
       - name: Install dependencies
         run: flutter pub get
 
-      # ✅ 改动 1：加 --split-per-abi，一次构建同时产出 32/64（以及 x86_64）
+      # ✅ 用 --build-name / --build-number 覆盖 pubspec，无需改 pubspec.yaml
       - name: Build APK (split per ABI)
-        run: flutter build apk --release --split-per-abi
+        run: |
+          flutter build apk --release --split-per-abi \
+            --build-name="$VER" --build-number="$BUILD"
 
-      # ✅ 改动 2：只挑 32/64 两个，重命名成易懂的名字
-      #    （故意不要 x86_64——那是给电脑模拟器用的，普通用户用不到，挂上去反而让人困惑）
       - name: Prepare 32-bit & 64-bit APKs
         run: |
           mkdir -p release
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-             release/sylvakru-${{ github.ref_name }}-arm32.apk
+             release/sylvakru-${VER}-arm32.apk
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-             release/sylvakru-${{ github.ref_name }}-arm64.apk
+             release/sylvakru-${VER}-arm64.apk
           ls -lh release/
 
-      # 创建 Release，把 release 目录里的 apk 全挂上去（正好就是上面那两个）
+      # ✅ tag 不存在时，这个插件会自动创建 tag = v<版本号>
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Sylvakru ${{ github.ref_name }}
+          tag_name: v${{ env.VER }}
+          name: Sylvakru ${{ env.VER }}
           generate_release_notes: true
           body: |
+            显示版本：**${{ env.VER }}**　内部 build：${{ env.BUILD }}
             ## 下载哪个？/ Which one to download?
             - **arm64**（64 位）：近几年的绝大多数手机，**推荐**。
             - **arm32**（32 位）：仅较老的 32 位设备需要。
