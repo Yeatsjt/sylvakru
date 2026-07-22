@@ -22,8 +22,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 关键修复：与 pubspec.yaml 中的 flutter: 3.44.5 保持一致
-          # 此版本内置 Dart SDK >= 3.11.0，可解决版本解析失败问题
           flutter-version: '3.44.5'
           channel: 'stable'
           cache: true
@@ -31,8 +29,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (unsigned)
+        run: flutter build apk --release --no-sign
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
