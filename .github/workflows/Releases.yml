@@ -1,0 +1,81 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write          # ⚠️ 别删，删了最后一步 403 失败
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.5'
+          channel: 'stable'
+          cache: true
+
+      # —— 签名两步，照搬，别动 ——
+      - name: Generate temporary release keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/release-keystore.jks" \
+            -alias release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android123 -keypass android123 \
+            -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+
+      - name: Create key.properties for CI
+        run: |
+          {
+            echo "storePassword=android123"
+            echo "keyPassword=android123"
+            echo "keyAlias=release"
+            echo "storeFile=$GITHUB_WORKSPACE/release-keystore.jks"
+          } > "$GITHUB_WORKSPACE/android/key.properties"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ✅ 改动 1：加 --split-per-abi，一次构建同时产出 32/64（以及 x86_64）
+      - name: Build APK (split per ABI)
+        run: flutter build apk --release --split-per-abi
+
+      # ✅ 改动 2：只挑 32/64 两个，重命名成易懂的名字
+      #    （故意不要 x86_64——那是给电脑模拟器用的，普通用户用不到，挂上去反而让人困惑）
+      - name: Prepare 32-bit & 64-bit APKs
+        run: |
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+             release/sylvakru-${{ github.ref_name }}-arm32.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+             release/sylvakru-${{ github.ref_name }}-arm64.apk
+          ls -lh release/
+
+      # 创建 Release，把 release 目录里的 apk 全挂上去（正好就是上面那两个）
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Sylvakru ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            ## 下载哪个？/ Which one to download?
+            - **arm64**（64 位）：近几年的绝大多数手机，**推荐**。
+            - **arm32**（32 位）：仅较老的 32 位设备需要。
+            - 不确定就选 **arm64**。
+          files: release/*.apk
