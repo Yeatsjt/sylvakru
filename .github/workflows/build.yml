@@ -26,11 +26,33 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # ✅ 新增 1：用 JDK 自带的 keytool 现场生成一个临时签名证书
+      - name: Generate temporary release keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/release-keystore.jks" \
+            -alias release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android123 -keypass android123 \
+            -dname "CN=CI, OU=CI, O=CI, L=CI, ST=CI, C=US"
+
+      # ✅ 新增 2：生成 key.properties，让 build.gradle 能读到上面的证书
+      #    （storeFile 用绝对路径，避免相对路径解析出错）
+      - name: Create key.properties for CI
+        run: |
+          {
+            echo "storePassword=android123"
+            echo "keyPassword=android123"
+            echo "keyAlias=release"
+            echo "storeFile=$GITHUB_WORKSPACE/release-keystore.jks"
+          } > "$GITHUB_WORKSPACE/android/key.properties"
+
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK (unsigned)
-        run: flutter build apk --release --no-sign
+      # ✅ 注意：这里就是普通的 release 构建，不要加 --no-sign
+      - name: Build APK
+        run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
