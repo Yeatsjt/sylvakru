@@ -148,7 +148,8 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
           );
           return PortraitView();
         }
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+        // 取消横屏自动沉浸（沉浸会自动隐藏状态栏和导航栏）
+        // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
         return LandscapeView();
       },
     );
