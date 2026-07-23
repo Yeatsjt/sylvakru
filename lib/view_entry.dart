@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:sylvakru/base/app.dart';
 import 'package:sylvakru/base/audio_handler.dart';
 import 'package:sylvakru/base/services/interaction.dart';
@@ -58,9 +59,6 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
     networkErrorNotifier.addListener(_onNetworkError);
   }
 
-  // Server clients report failures here since they have no BuildContext of
-  // their own; this is the single place that turns that into something the
-  // user actually sees, instead of the failure only ever reaching the log.
   void _onNetworkError() {
     final message = lastNetworkErrorMessage;
     if (message != null && mounted) {
@@ -83,7 +81,6 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
       if (state == .resumed) {
         systemCanPop = false;
         _exitTimer?.cancel();
-        // rebuild PopScope to allow it to handle pop
         setState(() {
           keyValue++;
         });
@@ -148,9 +145,23 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
           );
           return PortraitView();
         }
-        // 取消横屏自动沉浸（沉浸会自动隐藏状态栏和导航栏）
-        // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
-        return LandscapeView();
+
+        // ✅ 修改：将 immersive 替换为 edgeToEdge
+        // 效果：状态栏和导航栏【可见】+【透明】+ 内容绘制到栏后面
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+        // ✅ 新增：设置状态栏和导航栏为透明
+        SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ));
+
+        // ✅ 修改：用 SafeArea 包裹 LandscapeView，防止内容被透明栏遮挡
+        return SafeArea(
+          child: LandscapeView(),
+        );
       },
     );
   }
