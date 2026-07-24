@@ -102,7 +102,20 @@ class _LandscapeLyricsPageState extends State<LandscapeLyricsPage> {
               ValueListenableBuilder(
                 valueListenable: lyricsPageBackgroundColor.valueNotifier,
                 builder: (context, value, child) {
-                  return Container(color: value, child: child);
+                  // ✅ 新增：取出系统栏安全距离
+                  final p = MediaQuery.of(context).padding;
+                  return Container(
+                    color: value, // 背景色仍铺满全屏，不缩进
+                    // ✅ 新增：只把内容(child=Row)推进安全区，避开导航栏
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: p.bottom, // 关键：让出底部导航栏
+                        left: p.left,
+                        right: p.right,
+                      ),
+                      child: child,
+                    ),
+                  );
                 },
                 child: Row(
                   children: [
