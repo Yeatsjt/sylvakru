@@ -25,7 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ---------- 解析 tag / 说明 / 预发布 ----------
       - name: Resolve release meta
         id: meta
         run: |
@@ -43,7 +42,6 @@ jobs:
           echo "EOF"             >> "$GITHUB_OUTPUT"
           echo "✅ Release tag = $TAG"
 
-      # ---------- 读作者钉死的 Flutter 版本 ----------
       - name: Read Flutter version from .fvmrc
         id: fvm
         run: |
@@ -66,56 +64,46 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ---------- 银弹：强制移除 key.properties，确保 release 退化为 unsigned ----------
+      # ---------- 银弹：强制移除 key.properties，使 release 退化为 unsigned ----------
       - name: Ensure no signing config (force unsigned)
         run: |
           if [ -f android/key.properties ]; then
             rm -f android/key.properties
-            echo "✅ 已移除作者提交的 key.properties，release 将产出 unsigned"
+            echo "✅ 已移除 key.properties，release 将产出 unsigned"
           else
             echo "ℹ️ 本就没有 key.properties，release 将产出 unsigned"
           fi
 
-      # ---------- 诊断：作者 gradle 签名现状（只读，帮你确认会退化 unsigned） ----------
-      - name: Inspect author signing config
-        run: |
-          F=android/app/build.gradle.kts
-          echo "---- $F 签名相关 ----"
-          grep -nE "key\.properties|signingConfigs|storeFile|getByName\(\"release\"\)" "$F" || echo "（未匹配）"
-          echo "---------------------"
-
       - run: flutter --version
       - run: flutter pub get
 
-      # ---------- ① 分架构 unsigned：armv7 / arm64 / x86_64 ----------
       - name: Build split-per-abi release (unsigned)
         run: flutter build apk --release --split-per-abi
 
-      # ---------- ② 通用 unsigned：含全部 3 架构 ----------
       - name: Build universal release (unsigned)
         run: flutter build apk --release
 
-      # ---------- 列出产物（只看不拦，确认 unsigned 已生成） ----------
+      # ---------- 列出产物：盯一眼真实文件名前缀（sylvakru / senlu / app 都行） ----------
       - name: List outputs
         run: |
           DIR=build/app/outputs/flutter-apk
           echo "---- 产物列表 ----"
           ls -la "$DIR"
           echo "----------------"
-          echo "ℹ️ 期望看到 app-*-release-unsigned.apk 与 app-release-unsigned.apk（未签名，需 MT 补签）。"
-          echo "ℹ️ x86(32位) 因 Dart AOT 不支持，release 不产出，属正常。"
 
-      # ---------- 生成 SHA-256（针对 unsigned 文件，方便你核对下载完整性） ----------
+      # ---------- 校验和：前缀无关通配 + 空保护（匹配不到就直接报错并 ls，不再生成空文件） ----------
       - name: Generate checksums
         run: |
           cd build/app/outputs/flutter-apk
-          {
-            for f in app-arm64-v8a-release-unsigned.apk app-armeabi-v7a-release-unsigned.apk app-x86_64-release-unsigned.apk app-release-unsigned.apk; do
-              [ -f "$f" ] && sha256sum "$f"
-            done
-          } | tee sha256sums.txt
+          if ! ls *release-unsigned.apk >/dev/null 2>&1; then
+            echo "::error::没有匹配到 *release-unsigned.apk！真实文件如下，请把这份列表反馈："
+            ls -la
+            exit 1
+          fi
+          sha256sum *release-unsigned.apk | tee sha256sums.txt
+          echo "✅ 校验和已生成（非空）"
 
-      # ---------- 创建 Release，上传 unsigned 半成品 ----------
+      # ---------- 创建 Release，上传 unsigned 半成品（前缀无关通配） ----------
       - uses: softprops/action-gh-release@v2
         with:
           tag_name:   ${{ steps.meta.outputs.tag }}
@@ -132,10 +120,10 @@ jobs:
 
             | 文件 | 适用设备 |
             |------|----------|
-            | **app-arm64-v8a-release-unsigned.apk** | 64 位 ARM — 绝大多数现代手机（**首选**） |
-            | **app-armeabi-v7a-release-unsigned.apk** | 32 位 ARM — 老手机 |
-            | **app-x86_64-release-unsigned.apk** | 64 位 x86 — 模拟器 / ChromeOS / 少数平板 |
-            | **app-release-unsigned.apk** | 通用包 — 含以上全部架构（体积较大） |
+            | **\*-arm64-v8a-release-unsigned.apk** | 64 位 ARM — 绝大多数现代手机（**首选**） |
+            | **\*-armeabi-v7a-release-unsigned.apk** | 32 位 ARM — 老旧手机 |
+            | **\*-x86_64-release-unsigned.apk** | 64 位 x86 — 模拟器 / ChromeOS |
+            | **\*-release-unsigned.apk**（通用） | 含以上全部架构 |
           files: |
-            build/app/outputs/flutter-apk/app*unsigned.apk
+            build/app/outputs/flutter-apk/*release-unsigned.apk
             build/app/outputs/flutter-apk/sha256sums.txt
