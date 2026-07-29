@@ -183,7 +183,10 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
         // immersiveSticky：上滑临时显示的系统栏是透明浮层、不派发 insets
         // 变化也会自动隐藏，全面屏手势可正常完成；immersive 被唤出后会常驻
         _applySystemUiMode(SystemUiMode.immersiveSticky);
-        return LandscapeView();
+        //注释下面代码防止横屏自动沉浸遮挡状态栏和导航栏
+        //return LandscapeView();
+        //修改成这个可以防止横屏自动沉浸
+        return SafeArea(child: LandscapeView());
       },
     );
   }
