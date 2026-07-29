@@ -33,7 +33,7 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"; NOTES=""; PRE="false"
           fi
-          [ -z "$NOTES" ] && NOTES="Automated **unsigned** multi-ABI release build for **$TAG** — 下载后请用 MT 管理器等工具本地签名再安装。"
+          [ -z "$NOTES" ] && NOTES="Automated **unsigned** release build for **$TAG** (arm64 + arm32) — 下载后请用 MT 管理器等工具本地签名再安装。"
           [ -z "$PRE" ]   && PRE="false"
           echo "tag=$TAG"        >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
@@ -64,26 +64,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # ---------- 银弹：强制移除 key.properties，使 release 退化为 unsigned ----------
+      # ---------- 银弹：强制移除 key.properties，使 release 退化为未签名 ----------
       - name: Ensure no signing config (force unsigned)
         run: |
           if [ -f android/key.properties ]; then
             rm -f android/key.properties
-            echo "✅ 已移除 key.properties，release 将产出 unsigned"
+            echo "✅ 已移除 key.properties，release 将产出未签名包"
           else
-            echo "ℹ️ 本就没有 key.properties，release 将产出 unsigned"
+            echo "ℹ️ 本就没有 key.properties，release 将产出未签名包"
           fi
 
       - run: flutter --version
       - run: flutter pub get
 
+      # ---------- 只 build split 包（不再 build 通用包，省时间） ----------
       - name: Build split-per-abi release (unsigned)
         run: flutter build apk --release --split-per-abi
 
-      - name: Build universal release (unsigned)
-        run: flutter build apk --release
-
-      # ---------- 列出产物：盯一眼真实文件名前缀（sylvakru / senlu / app 都行） ----------
+      # ---------- 列出真实产物（兜底：会看到 arm64/v7a/x86_64 三个 split 包，无通用包） ----------
       - name: List outputs
         run: |
           DIR=build/app/outputs/flutter-apk
@@ -91,19 +89,28 @@ jobs:
           ls -la "$DIR"
           echo "----------------"
 
-      # ---------- 校验和：前缀无关通配 + 空保护（匹配不到就直接报错并 ls，不再生成空文件） ----------
-      - name: Generate checksums
+      # ---------- 校验上传目标必须恰好 2 个 + 逐个确认未签名（替代原 checksums 的保护角色） ----------
+      - name: Verify upload targets & confirm unsigned
         run: |
           cd build/app/outputs/flutter-apk
-          if ! ls *release-unsigned.apk >/dev/null 2>&1; then
-            echo "::error::没有匹配到 *release-unsigned.apk！真实文件如下，请把这份列表反馈："
-            ls -la
+          shopt -s nullglob
+          targets=( *arm64-v8a-release.apk *armeabi-v7a-release.apk )
+          shopt -u nullglob
+          if [ "${#targets[@]}" -ne 2 ]; then
+            echo "::error::期望恰好 2 个上传目标(arm64-v8a + armeabi-v7a)，实际匹配 ${#targets[@]} 个"
+            echo "---- 真实文件 ----"; ls -la
             exit 1
           fi
-          sha256sum *release-unsigned.apk | tee sha256sums.txt
-          echo "✅ 校验和已生成（非空）"
+          for f in "${targets[@]}"; do
+            if unzip -l "$f" 2>/dev/null | grep -qiE 'META-INF/.*\.(RSA|EC|DSA|SF)[[:space:]]*$'; then
+              echo "⚠️  $f 含 v1 签名块（若期望未签名，请确认 key.properties 已移除）"
+            else
+              echo "✅ $f 无 v1 签名块 → 未签名，请用 MT 签名后安装"
+            fi
+          done
+          echo "✅ 上传目标齐全：${targets[*]}"
 
-      # ---------- 创建 Release，上传 unsigned 半成品（前缀无关通配） ----------
+      # ---------- 创建 Release，只上传 arm64 + arm32（无通用包、无 x86_64、无校验文件） ----------
       - uses: softprops/action-gh-release@v2
         with:
           tag_name:   ${{ steps.meta.outputs.tag }}
@@ -120,10 +127,8 @@ jobs:
 
             | 文件 | 适用设备 |
             |------|----------|
-            | **\*-arm64-v8a-release-unsigned.apk** | 64 位 ARM — 绝大多数现代手机（**首选**） |
-            | **\*-armeabi-v7a-release-unsigned.apk** | 32 位 ARM — 老旧手机 |
-            | **\*-x86_64-release-unsigned.apk** | 64 位 x86 — 模拟器 / ChromeOS |
-            | **\*-release-unsigned.apk**（通用） | 含以上全部架构 |
+            | **\*-arm64-v8a-release.apk** | 64 位 ARM — 绝大多数现代手机（**首选**） |
+            | **\*-armeabi-v7a-release.apk** | 32 位 ARM — 老旧手机 |
           files: |
-            build/app/outputs/flutter-apk/*release-unsigned.apk
-            build/app/outputs/flutter-apk/sha256sums.txt
+            build/app/outputs/flutter-apk/*arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/*armeabi-v7a-release.apk
