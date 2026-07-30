@@ -180,13 +180,22 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
           _applySystemUiMode(SystemUiMode.manual);
           return PortraitView();
         }
-        // immersiveSticky：上滑临时显示的系统栏是透明浮层、不派发 insets
-        // 变化也会自动隐藏，全面屏手势可正常完成；immersive 被唤出后会常驻
-        _applySystemUiMode(SystemUiMode.immersiveSticky);
-        //注释下面代码防止横屏自动沉浸遮挡状态栏和导航栏
-        //return LandscapeView();
-        //修改成这个可以防止横屏自动沉浸
-        return SafeArea(child: LandscapeView());
+      // ① 显示系统栏
+      _applySystemUiMode(SystemUiMode.edgeToEdge);
+      // ② 黑底 + 浅色图标，精确复现图 1（浅色主页上白字才看得见）
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.black,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.black,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+      );
+      // 注释下面代码防止横屏自动沉浸遮挡状态栏和导航栏
+      // return LandscapeView();
+      // 修改成这个可以防止横屏自动沉浸
+      return SafeArea(child: LandscapeView());
       },
     );
   }
