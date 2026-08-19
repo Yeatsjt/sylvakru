@@ -44,15 +44,20 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
+    //修改这里，无需签名打包
+    //开始修改
     buildTypes {
-        release {
+    release {
+        // CI 环境中设置 UNSIGNED_BUILD=true 则跳过签名
+        if (System.getenv("UNSIGNED_BUILD") != "true") {
             signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            applicationIdSuffix = ".debug" 
-        }
     }
+    debug {
+        applicationIdSuffix = ".debug"
+    }
+}
+//结束修改
 
     configurations.all {
         resolutionStrategy {
