@@ -98,11 +98,25 @@ class _LandscapeLyricsPageState extends State<LandscapeLyricsPage> {
                   ),
                 ),
               ],
-
+              //修改这里
               ValueListenableBuilder(
                 valueListenable: lyricsPageBackgroundColor.valueNotifier,
                 builder: (context, value, child) {
-                  return Container(color: value, child: child);
+                  //开始修改
+                  final p = MediaQuery.of(context).padding;
+                  return Container(
+                    color: value, // 背景色仍铺满全屏，不缩进
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: p.top,           // 让出状态栏
+                        bottom: p.bottom + 48, // 让出导航栏 + 48 呼吸间距
+                        left: p.left,
+                        right: p.right,
+                      ),
+                      child: child,
+                    ),
+                  );
+                  //结束修改
                 },
                 child: Row(
                   children: [
