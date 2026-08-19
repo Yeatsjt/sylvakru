@@ -79,7 +79,7 @@ jobs:
           java-version: '17'
 
       # ---------- 强制移除签名配置，确保产出未签名包 ----------
-      - name: Ensure no signing config (force unsigned)
+      - name: Remove key.properties if exists
         run: |
           if [ -f android/key.properties ]; then
             rm -f android/key.properties
