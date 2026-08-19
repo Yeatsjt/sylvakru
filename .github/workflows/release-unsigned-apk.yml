@@ -157,7 +157,6 @@ jobs:
             ${{ steps.meta.outputs.notes }}
 
             > ⚠️ 以下 APK **未签名，不能直接安装**。请下载后用 **MT 管理器 / apksigner** 本地签名再装。
-            > 文件名里没有 `unsigned` 字样是正常的（Flutter 命名如此），CI 日志的 Verify 步骤已逐个确认未签名。
             > 建议 MT 签名时**固定使用同一个证书文件**，升级无需卸载旧包。
 
             ### 📦 未签名包
