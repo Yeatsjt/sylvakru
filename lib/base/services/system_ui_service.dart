@@ -16,7 +16,8 @@ void applySystemUiMode({SystemUiMode? mode, bool forceApply = false}) {
   if (_appliedUiMode == SystemUiMode.manual) {
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
-      overlays: [SystemUiOverlay.top],
+      //注释这条overlays: [SystemUiOverlay.top],
+      overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom], // ← 修改这里
     );
   } else {
     SystemChrome.setEnabledSystemUIMode(_appliedUiMode!);
