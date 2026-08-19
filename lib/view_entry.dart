@@ -175,6 +175,11 @@ class _ViewEntryState extends State<ViewEntry> with WidgetsBindingObserver {
         applySystemUiMode(
           mode: immersiveWideLayoutNotifier.value ? .immersiveSticky : .manual,
         );
+        //增加这里+++++++++++
+        // 关闭沉浸时，用 SafeArea 包裹防止内容被状态栏/导航栏遮挡
+        if (!immersiveWideLayoutNotifier.value) {
+          return SafeArea(child: LandscapeView());
+        }
         return LandscapeView();
       },
     );
