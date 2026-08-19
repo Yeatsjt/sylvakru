@@ -93,6 +93,8 @@ jobs:
 
       # ---------- 只编译 arm64 + arm32 split 包 ----------
       - name: Build split-per-abi release (unsigned, arm64 + arm32 only)
+        env:
+          UNSIGNED_BUILD: "true"
         run: flutter build apk --release --split-per-abi
 
       # ---------- 列出产物并提示 x86_64 排除 ----------
